@@ -1,4 +1,5 @@
-use std::io::Write;
+use std::io::{Write, Read};
+use std::thread;
 
 use tokio::time::Duration;
 
@@ -20,13 +21,32 @@ async fn main() {
     }
 
     let mut ports = Vec::new();
+    let mut rx_ports = Vec::new();
 
     for port in quty_ports {
-        ports.push(serialport::new(port, 9600).open().unwrap());
+        let serial = serialport::new(port, 9600).open().unwrap();
+        rx_ports.push(serial.try_clone().unwrap());
+        ports.push(serial);
     }
-    
+
     let n_ports = ports.len();
     println!("Found {} QUTy board(s).", n_ports);
+
+    // Receive Thread
+    thread::spawn(move || {
+        loop {
+            for (i, rx_port) in rx_ports.iter_mut().enumerate() {
+                let mut buffer = [0u8; 64]; // 64 byte buffer
+                if let Ok(n) = rx_port.read(&mut buffer) {
+                    if n > 0 {
+                        let s = String::from_utf8_lossy(&buffer[0..n]);
+                        println!("RX{}: {}", i, s);
+                    }
+                }
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+    });
 
     let mut tictoc = true;
 
