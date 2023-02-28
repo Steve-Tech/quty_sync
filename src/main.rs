@@ -1,3 +1,4 @@
+use std::env;
 use std::io::{Write, Read};
 use std::thread;
 
@@ -32,21 +33,24 @@ async fn main() {
     let n_ports = ports.len();
     println!("Found {} QUTy board(s).", n_ports);
 
-    // Receive Thread
-    thread::spawn(move || {
-        loop {
-            for (i, rx_port) in rx_ports.iter_mut().enumerate() {
-                let mut buffer = [0u8; 64]; // 64 byte buffer
-                if let Ok(n) = rx_port.read(&mut buffer) {
-                    if n > 0 {
-                        let s = String::from_utf8_lossy(&buffer[0..n]);
-                        println!("RX{}: {}", i, s);
+    // Check if -r flag is present
+    if env::args().any(|v| v == "-r") {
+        // Receive Thread
+        thread::spawn(move || {
+            loop {
+                for (i, rx_port) in rx_ports.iter_mut().enumerate() {
+                    let mut buffer = [0u8; 64]; // 64 byte buffer
+                    if let Ok(n) = rx_port.read(&mut buffer) {
+                        if n > 0 {
+                            let s = String::from_utf8_lossy(&buffer[0..n]);
+                            println!("RX{}: {}", i, s);
+                        }
                     }
                 }
+                thread::sleep(Duration::from_millis(10));
             }
-            thread::sleep(Duration::from_millis(10));
-        }
-    });
+        });
+    }
 
     let mut tictoc = true;
 
